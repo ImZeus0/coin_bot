@@ -1,0 +1,15 @@
+start = ['Выбери биржу по которой хочешь узнать информацю ⬇',
+         'Viberi exchange you want to find out information ⬇']
+back = ['Вернуться в начальное меню ⬅', 'Return to the start menu ⬅']
+coin_menu = [['⚡ Стрим сделок ⚡', '📊 Статистика за период 📊'],
+             ['⚡ Stream deals ⚡', '📊 Statistics for the period 📊']]
+intr_menu = [['🕕 день', '🕕 4 часа', '🕕 час'], ['🕕 day', '🕕 4 hours', '🕕 hour']]
+start_s = ['❇ Старт ❇', '❇ Start ❇']
+stop_s = ['🛑 Стоп 🛑', '🛑 Stop 🛑']
+error = [['⚠ Неизвестный запрос ⚠'], ['⚠ Unknown request ⚠']]
+en_dt = ['Введите начальную дату  ➡  YYYY-MM-DD', 'Enter the start date ➡  YYYY-MM-DD']
+en_dt1 = ['Введите конечную дату  ➡  YYYY-MM-DD', 'Enter the end date ➡  YYYY-MM-DD']
+en_amm = ['Введите объем за примером \n/min <число> \nбез скобок ❗','Enter the volume after the example \n/ min <number> \nwithout parentheses ❗']
+res_stat = [['Результат за период'],['Period result']]
+err_data = [['❗ Промежуток времени введено некорректно ❗'],['❗ The time span was entered incorrectly ❗']]
+stat_text = [['\nНачальная цена ➡','\nКонечная цена ➡','\nМаксимальная цена ➡','\nМинимальная цена ➡','\nОбъем за период ➡','\nКоличество сделок ➡'],['\nStarting price ➡','\nThe final price ➡','\nMaximum price ➡','\nMinimum price ➡','\nVolume for the period ➡','\nAmount of deals ➡']]
