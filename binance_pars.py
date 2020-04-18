@@ -82,3 +82,28 @@ def generate_replty(lim_amm, time, ammount, price, type, id, symbol):
         buff_id = id
         return 'none'
 
+def trades(symbol):
+    while 1:
+        startTime = datetime.datetime.now() - datetime.timedelta(minutes=1)
+        buffTime = datetime.datetime.now()
+        print(startTime, buffTime)
+        ms_s_time = int(startTime.timestamp())
+        ms_b_time = int(buffTime.timestamp())
+        url = 'https://www.binance.com/api/v3/aggTrades?symbol=' + symbol + 'USDT&startTime=' + str(
+            ms_s_time) + '000&endTime=' + str(ms_b_time) + '000&limit=1000'
+        response = requests.get(url)
+        list = json.loads(response.text)
+        print(sum_coin(list))
+        time.sleep(60)
+
+def sum_coin(trades):
+    sum_buy = 0
+    sum_sell = 0
+    for t in trades:
+        if t.get('M') == True:
+            sum_buy += int(float(t.get('q'))*float(t.get('p')))
+        elif t.get('M') == False:
+            sum_sell += int(float(t.get('q')) * float(t.get('p')))
+    return [sum_buy,sum_sell]
+
+trades("BTC")
