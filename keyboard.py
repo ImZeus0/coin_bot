@@ -14,6 +14,7 @@ def main_menu():
     keyboard.add(types.KeyboardButton("Binance"))
     keyboard.add(types.KeyboardButton("Bitmex"))
     keyboard.add(types.KeyboardButton("Bitfinex"))
+    keyboard.add(types.KeyboardButton(lang.сhange_lang[conf_menu.lang]))
     return keyboard
 
 
