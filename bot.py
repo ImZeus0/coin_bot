@@ -1,3 +1,4 @@
+import threading
 import telebot
 import config
 import keyboard
@@ -52,7 +53,7 @@ def start_bitfinex(m, symbol, lim_max,lim_min):
     flag_stream = True
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
-        reply = parse.trades(symbol, lim_max,lim_min)
+        reply = parse.trades(symbol, lim_min,lim_max)
         print(reply)
         if reply != None:
             bot.send_message(config.chat, reply[1:])
@@ -63,13 +64,13 @@ def start_bitfinex(m, symbol, lim_max,lim_min):
 def set_intr(m):
     try:
         num = m.text.split(' ')
-        intr = int(num[1])
-        intr1 = int(num[2])
+        intr = float(num[1])
+        intr1 = float(num[2])
         conf_menu.list_conf.append(intr)
         conf_menu.list_conf.append(intr1)
         bot.send_message(m.chat.id, "Лимит установлен", reply_markup=keyboard.stream_menu_1())
     except Exception as l:
-        bot.send_message(m.chat.id, str(l) + ' Некорректный запрос')
+        bot.send_message(m.chat.id, str(l) + ' Некорректный запрос, попробуйте ещё раз')
 
 
 @bot.message_handler(commands=['m'])
@@ -78,11 +79,11 @@ def date(m):
         msg = m.text.split(' ')
         match = re.search(r'\d+', msg[1])
         if match:
-            if round(float(msg[1])) <= 60 and round(float(msg[1])) >= 1:
+            if round(float(msg[1])) <= 30 and round(float(msg[1])) >= 1:
                 conf_menu.list_conf.append(round(float(msg[1])))
                 bot.send_message(m.chat.id, lang.en_amm[conf_menu.lang])
             else:
-                bot.send_message(m.chat.id, 'Слишком большое число или слишком маленькое (60 > n > 0)')
+                bot.send_message(m.chat.id, 'Слишком большое число или слишком маленькое (30 > n > 0)')
         else:
             bot.send_message(m.chat.id, 'Введите число')
     except:
@@ -207,7 +208,7 @@ def menu(m):
         bot.send_message(m.chat.id, m.text, lang.start[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = [' ']
     elif m.text == '⚡ Стрим сделок ⚡' or m.text == '⚡ Stream deals ⚡':
-        bot.send_message(m.chat.id, 'Введите интервал времени в минутах по примеру\n/l <min> <max>')
+        bot.send_message(m.chat.id, 'Введите значения по примеру\n/l <min> <max>')
     else:
         bot.send_message(m.chat.id, lang.error[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = ['']
