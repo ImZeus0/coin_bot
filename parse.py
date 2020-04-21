@@ -1,69 +1,90 @@
 import requests
 import json
 import math
-from datetime import datetime
-import datetime as DT
-import parse
+import xlsx_writer
+import conf_menu
+import datetime
 
 buff_id = 0
 
-def daily_am(coin):
-    coin = coin.upper()
-    url = 'https://api-pub.bitfinex.com/v2/tickers?symbols=t'+coin+'USD'
-    response = requests.get(url)
-    res = json.loads(response.text)
-    print(res)
-    return 'Daily volume: '+str(res[0][8])
 
-
-def get_trades(coin, limit, l_price):
-    coin = coin.upper()
-    url = 'https://api-pub.bitfinex.com/v2/trades/t'+coin+'USD/hist'
-    response = requests.get(url)
-    symbol = coin
-    trades = json.loads(response.text)
-    time = datetime.fromtimestamp(int(trades[0][1] / 1000))
-    ammount = math.fabs(trades[0][2])*trades[0][3]
-    price = trades[0][3]
-    id = trades[0][0]
-    type = ''
-    if trades[0][2] >= 0:
-        type = 'BUY'
-    else:
-        type = 'SELL'
-    return generate_replty(limit, l_price, time, ammount, price, type,id,symbol)
-
-def trade_for_the_period(symbol,start_t,end_t,period):
-    start_t = datetime.strptime(start_t,'%Y-%m-%d')
-    start_t = str(int(start_t.timestamp()))
-    end_t = datetime.strptime(end_t, '%Y-%m-%d')
-    end_t = str(int(end_t.timestamp()))
-    url = 'https://api-pub.bitfinex.com/v2/candles/trade:'+period+':t'+symbol+'USD/hist?start='+start_t+'000&end='+end_t+'000&sort=-1'
-    response = requests.get(url)
-    trades = json.loads(response.text)
-    info = []
-    for trade in trades:
-        time = datetime.fromtimestamp(int(trade[0] / 1000))
-        openT = trade[1]
-        max_price = trade[3]
-        min_price = trade[4]
-        close = trade[2]
-        volume = trade[5]
-        info.append([time, openT, max_price, min_price, close, volume, symbol])
-    return info
-
-
-def generate_replty(lim_amm, lim_pri, time, ammount, price, type,id,symbol):
-    global buff_id
-    if id != buff_id:
-        buff_id = id
-        if (lim_amm <= ammount and lim_pri <= price):
-            if type == 'BUY':
-                return "🕐 " + str(time) + "\n📊 BUY\n➡ ammount :" + str(ammount) +"\n🔷 "+symbol+"\n💰 price "+str(price)
-            else:
-                return "🕐 " + str(time) + " \n📊 SEL\n➡ ammount :" + str(ammount) + "\n🔷 "+symbol+"\n💰 price "+str(price)
+def get_trades(symbol, date,lim_min,lim_max):
+    res_trades = []
+    jump = datetime.timedelta(minutes=1)
+    startTime = datetime.datetime.now() - datetime.timedelta(minutes=date)
+    buffTime = startTime + jump
+    while buffTime != datetime.datetime.now():
+        if buffTime < datetime.datetime.now():
+            print(startTime, buffTime)
+            ms_s_time = int(startTime.timestamp())
+            ms_b_time = int(buffTime.timestamp())
+            url = 'https://api-pub.bitfinex.com/v2/trades/t' + symbol + 'USD/hist?limit=10000&start=' + str(
+                ms_s_time) + '000&end=' + str(ms_b_time) + '000&sort=-1'
+            response = requests.get(url)
+            list = json.loads(response.text)
+            res_trades.append(sum_coin(list, lim_min, lim_max))
+            startTime = buffTime
+            buffTime = startTime + jump
         else:
-            return 'none'
+            break
+    print(res_trades)
+    return create_statictic(res_trades)
+
+
+def trades(symbol, lim_max, lim_min):
+    startTime = datetime.datetime.now() - datetime.timedelta(minutes=1)
+    buffTime = datetime.datetime.now()
+    print(startTime.time())
+    print(buffTime.time())
+    ms_s_time = int(startTime.timestamp())
+    ms_b_time = int(buffTime.timestamp())
+    url = 'https://api-pub.bitfinex.com/v2/trades/t' + symbol + 'USD/hist?limit=10000&start=' + str(
+        ms_s_time) + '000&end=' + str(ms_b_time) + '000&sort=-1'
+    response = requests.get(url)
+    list = json.loads(response.text)
+    return create_msg(sum_coin(list, lim_max, lim_min))
+
+
+def sum_coin(trades, lim_max, lim_min):
+    sum_buy = 0
+    sum_sell = 0
+    time = 0
+    for t in trades:
+        if float(t[2]) > 0:
+            sum_buy += math.fabs(float(t[2]))
+        elif float(t[2]) < 0:
+            sum_sell += math.fabs(float(t[2]))
+        else:
+            pass
+        time = datetime.datetime.fromtimestamp(t[1] / 1000)
+    buy_persent = int((100 * sum_buy) / (sum_sell + sum_buy))
+    sell_persent = int((100 * sum_sell) / (sum_sell + sum_buy))
+    print(sum_buy, "$")
+    print(sum_sell, "$")
+    if lim_min < sum_buy and lim_max > sum_buy and lim_min < sum_sell and lim_max > sum_sell:
+        print('+++++++++++++')
+        return [sum_buy, sum_sell, buy_persent, sell_persent,time.time()]
     else:
-        buff_id = id
-        return 'none'
+        return None
+
+
+def create_msg(list):
+    msq = None
+    if list != None:
+        buy = str(list[0])
+        sell = str(list[1])
+        msq = '🕑 ' + str(datetime.datetime.now().time()) + '  🏛 ' + conf_menu.list_conf[0] + '\n🔹BUY ' + buy[
+                                                                                                            :11] + ' btc/1min\n🔻SELL ' + sell[
+                                                                                                                                          :11] + ' btc/1min\n🔹' + str(
+            list[2]) + ' %                   🔻' + str(list[3]) + ' %'
+    return msq
+
+
+def create_statictic(list):
+    msg = '🔸🔸🔸🔸'+conf_menu.list_conf[0]+'🔸🔸🔸🔸\n🔹🔺🔹🔺'+conf_menu.list_conf[1]+'/USD🔺🔹🔺🔹\n'
+    for l in list :
+        if l != None:
+            buy = str(l[0])
+            sell = str(l[1])
+            msg += '🕑 '+str(l[4])+'  🏛 '+conf_menu.list_conf[0]+'\n🔹BUY '+buy[:11]+' btc/1min\n🔻SELL '+sell[:11]+' btc/1min\n🔹'+str(l[2])+' %                   🔻'+str(l[3])+' %\n'
+    return msg

@@ -1,31 +1,12 @@
 import requests
 import json
-import time
 import datetime
 import conf_menu
-import datetime as DT
-buff_id = 0
+import xlsx_writer
 
-
-def get_trades(coin, lim):
-    coin = coin.upper()
-    url = 'https://api.binance.com/api/v3/trades?symbol=' + coin + 'USDT'
-    response = requests.get(url)
-    trades = json.loads(response.text)
-    time = datetime.datetime.fromtimestamp(int(int(trades[0].get('time')) / 1000))
-    price = trades[0].get('price')
-    symbol = coin
-    id = trades[0].get('id')
-    if trades[0].get('isBuyerMaker') == True:
-        type = 'Buy'
-    else:
-        type = 'Sell'
-    ammount = float(trades[0].get('qty')) * float(price)
-    return generate_replty(lim, time, float(ammount), float(price), type, id, symbol)
-
-def trade_for_period(symbol, date, rate):
+def trade_for_period(symbol, date,lim_min,lim_max):
     res_trades = []
-    jump = datetime.timedelta(minutes=5)
+    jump = datetime.timedelta(minutes=1)
     startTime = datetime.datetime.now() - datetime.timedelta(minutes=date)
     buffTime = startTime + jump
     while buffTime != datetime.datetime.now():
@@ -36,74 +17,66 @@ def trade_for_period(symbol, date, rate):
             url = 'https://www.binance.com/api/v3/aggTrades?symbol=' + symbol + 'USDT&startTime=' + str(ms_s_time) + '000&endTime=' + str(ms_b_time) + '000&limit=1000'
             response = requests.get(url)
             list = json.loads(response.text)
-            for l in list:
-                volume = l.get('q')
-                price = l.get('p')
-                if float(volume) * float(price) >= rate:
-                    print (float(volume) * float(price))
-                    print(l)
-                    res_trades.append(l)
+            res_trades.append(sum_coin(list,lim_min,lim_max))
             startTime = buffTime
             buffTime = startTime+jump
         else:
             break
-    return res_trades
+    print(res_trades)
+    return create_statictic(res_trades)
 
-def repry_statistic(list):
-    msg = ' '
-    for l in list:
-        volume = int(float(l.get('q'))*float(l.get('p')))
-        price = int(float(l.get('p')))
-        time = datetime.datetime.fromtimestamp(int(l.get('T')/1000))
-        if l.get('m') == True:
-            t_type = "BUY"
-        else:
-            t_type = "SELL"
-        msg += 'TIME : '+str(time.time())+' '+conf_menu.list_conf[1]+' '+t_type+' VOLUME : '+str(volume)+' PRICE : '+str(price)+'\n'
-    print(msg)
-    if msg == ' ':
-        return "Совпадений не найдено"
-    else:
-        return msg
-def generate_replty(lim_amm, time, ammount, price, type, id, symbol):
-    global buff_id
-    if id != buff_id:
-        buff_id = id
-        if (lim_amm <= ammount):
-            if type == 'Buy':
-                return "🕐 " + str(time) + "\n\n🔷 "+symbol+"\n📊 BUY\n➡ ammount :" + str(
-                    ammount) + " $\n💰 price " + str(price)
-            else:
-                return "🕐 " + str(time) + "\n\n🔷 " + symbol + "\n📊 SELL\n➡ ammount :" + str(
-                    ammount) + " $\n💰 price " + str(price)
-        else:
-            return 'none'
-    else:
-        buff_id = id
-        return 'none'
 
-def trades(symbol):
-    while 1:
-        startTime = datetime.datetime.now() - datetime.timedelta(minutes=1)
-        buffTime = datetime.datetime.now()
-        print(startTime, buffTime)
-        ms_s_time = int(startTime.timestamp())
-        ms_b_time = int(buffTime.timestamp())
-        url = 'https://www.binance.com/api/v3/aggTrades?symbol=' + symbol + 'USDT&startTime=' + str(
-            ms_s_time) + '000&endTime=' + str(ms_b_time) + '000&limit=1000'
-        response = requests.get(url)
-        list = json.loads(response.text)
-        print(sum_coin(list))
-        time.sleep(60)
+def trades(symbol,lim_min,lim_max):
+    startTime = datetime.datetime.now() - datetime.timedelta(minutes=1)
+    buffTime = datetime.datetime.now()
+    print(startTime, buffTime)
+    ms_s_time = int(startTime.timestamp())
+    ms_b_time = int(buffTime.timestamp())
+    url = 'https://www.binance.com/api/v3/aggTrades?symbol=' + symbol + 'USDT&startTime=' + str(
+        ms_s_time) + '000&endTime=' + str(ms_b_time) + '000&limit=1000'
+    response = requests.get(url)
+    list = json.loads(response.text)
+    return create_msg(sum_coin(list,lim_min,lim_max))
 
-def sum_coin(trades):
+def sum_coin(trades,lim_min,lim_max):
     sum_buy = 0
     sum_sell = 0
+    time = 0
     for t in trades:
-        if t.get('M') == True:
-            sum_buy += int(float(t.get('q'))*float(t.get('p')))
-        elif t.get('M') == False:
-            sum_sell += int(float(t.get('q')) * float(t.get('p')))
-    return [sum_buy,sum_sell]
+        if t.get('m') == True:
+            sum_buy += float(t.get('q'))
+        elif t.get('m') == False:
+            sum_sell += float(t.get('q'))
+        time = datetime.datetime.fromtimestamp(t.get('T')/1000)
+    buy_persent = int((100*sum_buy)/(sum_sell + sum_buy))
+    sell_persent = int((100 * sum_sell) / (sum_sell + sum_buy))
+    print(sum_buy, sum_sell, buy_persent, sell_persent, time)
+    print(buy_persent,"%",lim_min)
+    print(sell_persent, "%",lim_max)
+    if lim_min < sum_buy and lim_max > sum_buy and lim_min < sum_sell and lim_max > sum_sell:
+        print("+++++++++++++++++++++++")
+        return [sum_buy,sum_sell,buy_persent,sell_persent,time.time()]
+    else:
+        return None
 
-trades("BTC")
+def create_msg(list):
+    msq = None
+    if list != None:
+        buy = str(list[0])
+        sell = str(list[1])
+        msq = '🕑 '+str(list[4])+'  🏛 '+conf_menu.list_conf[0]+'\n🔹BUY '+buy[:11]+' btc/1min\n🔻SELL '+sell[:11]+' btc/1min\n🔹'+str(list[2])+' %                   🔻'+str(list[3])+' %'
+    return msq
+
+def create_statictic(list):
+    print(list)
+    msg = '🔸🔸🔸🔸'+conf_menu.list_conf[0]+'🔸🔸🔸🔸\n🔹🔺🔹🔺'+conf_menu.list_conf[1]+'/USD🔺🔹🔺🔹\n'
+    for l in list :
+        if l != None:
+            buy = str(l[0])
+            sell = str(l[1])
+            msg += '🕑 ' + str(l[4]) + '  🏛 ' + conf_menu.list_conf[0] + '\n🔹BUY ' + buy[
+                                                                                       :11] + ' btc/1min\n🔻SELL ' + sell[
+                                                                                                                     :11] + ' btc/1min\n🔹' + str(
+                l[2]) + ' %                   🔻' + str(l[3]) + ' %\n'
+    return msg
+

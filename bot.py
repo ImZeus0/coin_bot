@@ -1,12 +1,11 @@
 import telebot
 import config
 import keyboard
+import re
 import parse
 import time
 import binance_pars
 import bitmex_pars
-import os
-import gen_calendar
 import conf_menu
 import lang
 
@@ -18,124 +17,122 @@ bot = telebot.TeleBot(config.TOKEN)
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    global flag_stream
     bot.send_message(message.chat.id, 'Выберете язык / Choose a language', reply_markup=keyboard.lang_menu())
+    conf_menu.list_conf = [' ']
+    flag_stream = False
 
 
-@bot.message_handler(commands=['i'])
-def any_msg(message):
-    bot.send_message(message.chat.id, "select year", reply_markup=keyboard.inline_year())
-
-
-@bot.callback_query_handler(func=lambda call: True)
-def callback_inline(call):
-    years = gen_calendar.generate_year()
-    mons = gen_calendar.generate_mon()
-    if call.message:
-        for year in years:
-            if call.data == str(year):
-                # conf_menu.date[0]year
-                # bot.send_message(call.message.chat.id,call.data)
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      text="chose mon", reply_markup=keyboard.inline_mon())
-        for mon in mons.values():
-            if call.data == str(mon):
-                conf_menu.date.append(mon)
-                # bot.send_message(call.message.chat.id,call.data)
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                      text="chose day",
-                                      reply_markup=keyboard.inline_day(conf_menu.date[0], conf_menu.date[1]))
-        days = gen_calendar.generate_day(conf_menu.date[0], conf_menu.date[1])
-        for day in days:
-            if call.data == str(day):
-                conf_menu.date.append(day)
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=str(day))
-    print(conf_menu.date)
-
-
-def reply_binanse_statistic(a):
-    return str(a[0]) + '\n\n' + a[7] + lang.stat_text[conf_menu.lang][0] + str(a[1]) + lang.stat_text[conf_menu.lang][
-        2] + str(a[2]) + lang.stat_text[conf_menu.lang][3] + str(
-        a[3]) + lang.stat_text[conf_menu.lang][1] + str(a[4]) + lang.stat_text[conf_menu.lang][4] + str(a[5]) + \
-           lang.stat_text[conf_menu.lang][5] + str(a[6])
-
-
-def reply_bitfinex_statistic(a):
-    return str(a[0]) + '\n\n' + a[6] + lang.stat_text[conf_menu.lang][0] + str(a[1]) + lang.stat_text[conf_menu.lang][
-        2] + str(a[2]) + lang.stat_text[conf_menu.lang][3] + str(
-        a[3]) + lang.stat_text[conf_menu.lang][1] + str(a[4]) + lang.stat_text[conf_menu.lang][4] + str(a[5])
-
-
-def start_bitmex(m, symbol, min):
+def start_bitmex(m, symbol, lim_max,lim_min):
     global flag_stream
     flag_stream = True
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
-        reply = bitmex_pars.get_trades(symbol, min, 0)
+        reply = bitmex_pars.get_trades(symbol,lim_max,lim_min)
         print(reply)
-        if reply != 'none':
-            bot.send_message(m.chat.id, reply)
-        time.sleep(1)
+        if reply != None and len(reply)>5:
+            bot.send_message(config.chat, reply)
+        time.sleep(10)
 
 
-def start_binance(m, symbol, min):
+def start_binance(m, symbol, lim_max,lim_min):
     global flag_stream
     flag_stream = True
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
-        reply = binance_pars.get_trades(symbol, min)
+        reply = binance_pars.trades(symbol,lim_max,lim_min)
         print(reply)
-        if reply != 'none':
-            bot.send_message(m.chat.id, reply)
-        time.sleep(1)
+        if reply != None:
+            bot.send_message(config.chat, reply)
+        time.sleep(60)
 
 
-def start_bitfinex(m, symbol, min):
+def start_bitfinex(m, symbol, lim_max,lim_min):
     global flag_stream
     flag_stream = True
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
-        reply = parse.get_trades(symbol, min, 0)
+        reply = parse.trades(symbol, lim_max,lim_min)
         print(reply)
-        if reply != 'none':
-            bot.send_message(m.chat.id, reply)
-        time.sleep(3)
+        if reply != None:
+            bot.send_message(config.chat, reply[1:])
+        time.sleep(60)
+
+
+@bot.message_handler(commands=['l'])
+def set_intr(m):
+    try:
+        num = m.text.split(' ')
+        intr = int(num[1])
+        intr1 = int(num[2])
+        conf_menu.list_conf.append(intr)
+        conf_menu.list_conf.append(intr1)
+        bot.send_message(m.chat.id, "Лимит установлен", reply_markup=keyboard.stream_menu_1())
+    except Exception as l:
+        bot.send_message(m.chat.id, str(l) + ' Некорректный запрос')
 
 
 @bot.message_handler(commands=['m'])
 def date(m):
-    msg = m.text.split(' ')
-    conf_menu.list_conf.append(int(msg[1]))
-    bot.send_message(m.chat.id, lang.en_amm[conf_menu.lang])
+    try:
+        msg = m.text.split(' ')
+        match = re.search(r'\d+', msg[1])
+        if match:
+            if round(float(msg[1])) <= 60 and round(float(msg[1])) >= 1:
+                conf_menu.list_conf.append(round(float(msg[1])))
+                bot.send_message(m.chat.id, lang.en_amm[conf_menu.lang])
+            else:
+                bot.send_message(m.chat.id, 'Слишком большое число или слишком маленькое (60 > n > 0)')
+        else:
+            bot.send_message(m.chat.id, 'Введите число')
+    except:
+        bot.send_message(m.chat.id, 'Некорректный запрос')
 
 
-@bot.message_handler(commands=['limit'])
+@bot.message_handler(commands=['hist'])
 def limit(m):
     mim = m.text.split(' ')
-    if len(conf_menu.list_conf) == 2 and len(mim) == 2:
+    if len(conf_menu.list_conf) == 3 :
         conf_menu.list_conf.append(float(mim[1]))
-        bot.send_message(m.chat.id, 'Press start', reply_markup=keyboard.stream_menu_1())
-    elif len(conf_menu.list_conf) == 3:
-        conf_menu.list_conf.append(float(mim[1]))
+        conf_menu.list_conf.append(float(mim[2]))
         print(conf_menu.list_conf[2])
         print(conf_menu.list_conf[3])
         if conf_menu.list_conf[0] == 'binance':
-            msg = binance_pars.repry_statistic(
-                binance_pars.trade_for_period(conf_menu.list_conf[1], conf_menu.list_conf[2], conf_menu.list_conf[3]))
-            if len(msg) < 4000:
-                bot.send_message(m.chat.id, msg,reply_markup=keyboard.main_menu())
-                conf_menu.list_conf = [' ']
+            res = binance_pars.trade_for_period(conf_menu.list_conf[1], conf_menu.list_conf[2],
+                                                    conf_menu.list_conf[3],conf_menu.list_conf[4])
+            print(res)
+            if len(res) < 4000:
+                bot.send_message(config.chat, res)
             else:
-                with open('statistic.txt', 'w') as l:
-                    l.write(msg)
-                with open('statistic.txt', 'rb') as r:
-                    red = r.read()
-                bot.send_document(m.chat.id, red,reply_markup=keyboard.main_menu())
-                conf_menu.list_conf = [' ']
-                os.remove('statistic.txt')
-
+                bot.send_message(config.chat, res[0:3998] + "\n\nСообщение слишком длинное")
+            bot.send_message(m.chat.id,"OK",reply_markup=keyboard.main_menu())
+            conf_menu.list_conf = [' ']
+        elif conf_menu.list_conf[0] == 'bitfinex':
+            res = parse.get_trades(conf_menu.list_conf[1], conf_menu.list_conf[2],
+                                                    conf_menu.list_conf[4],conf_menu.list_conf[3])
+            print(res)
+            if len(res) < 4000:
+                bot.send_message(config.chat, res)
+            else:
+                bot.send_message(config.chat, res[0:3998] + "\n\nСообщение слишком длинное")
+            bot.send_message(m.chat.id, "OK", reply_markup=keyboard.main_menu())
+            conf_menu.list_conf = [' ']
+        elif conf_menu.list_conf[0] == 'bitmex':
+            res = bitmex_pars.trade_for_the_period(conf_menu.list_conf[1], conf_menu.list_conf[2],
+                                                       conf_menu.list_conf[3])
+            print(res)
+            if len(res) < 4000:
+                bot.send_message(config.chat, res)
+            else:
+                bot.send_message(config.chat, res[0:3998] + "\n\nСообщение слишком длинное")
+            bot.send_message(m.chat.id, "OK", reply_markup=keyboard.main_menu())
+            conf_menu.list_conf = [' ']
+        else:
+            bot.send_message(m.chat.id, 'Некорректный запрос ‼')
     else:
         bot.send_message(m.chat.id, lang.error[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = ['']
+
 
 
 @bot.message_handler(content_types=['text'])
@@ -199,18 +196,18 @@ def menu(m):
         bot.send_message(m.chat.id, lang.en_dt[conf_menu.lang])
     elif m.text == '❇ Старт ❇' or m.text == '❇ Start ❇':
         if conf_menu.list_conf[0] == 'bitmex':
-            start_bitmex(m, conf_menu.list_conf[1], float(conf_menu.list_conf[2]))
+            start_bitmex(m, conf_menu.list_conf[1], conf_menu.list_conf[2],conf_menu.list_conf[3])
         if conf_menu.list_conf[0] == 'bitfinex':
-            start_bitfinex(m, conf_menu.list_conf[1], float(conf_menu.list_conf[2]))
+            start_bitfinex(m, conf_menu.list_conf[1], conf_menu.list_conf[2],conf_menu.list_conf[3])
         if conf_menu.list_conf[0] == 'binance':
-            start_binance(m, conf_menu.list_conf[1], float(conf_menu.list_conf[2]))
+            start_binance(m, conf_menu.list_conf[1], conf_menu.list_conf[2],conf_menu.list_conf[3])
     elif m.text == '🛑 Стоп 🛑' or m.text == '🛑 Stop 🛑':
         global flag_stream
         flag_stream = False
         bot.send_message(m.chat.id, m.text, lang.start[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = [' ']
     elif m.text == '⚡ Стрим сделок ⚡' or m.text == '⚡ Stream deals ⚡':
-        bot.send_message(m.chat.id, lang.en_amm[conf_menu.lang], reply_markup=keyboard.null())
+        bot.send_message(m.chat.id, 'Введите интервал времени в минутах по примеру\n/l <min> <max>')
     else:
         bot.send_message(m.chat.id, lang.error[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = ['']
