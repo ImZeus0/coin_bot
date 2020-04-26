@@ -38,8 +38,8 @@ def format(trades,min_lim,max_lim):
         if min_lim<volume<max_lim:
             price = float(t.get('price'))
             type = t.get('side')
-            time = t.get('timestamp')
-            res +=[[time[11:19],volume,price,type]]
+            time = format_data(t.get('timestamp'))
+            res +=[[time,volume,price,type]]
     return res
 
 def create_msg(lists):
@@ -75,8 +75,8 @@ def trade_for_the_period(symbol, date, rate):
                 type = l.get('side')
                 price = l.get('price')
                 if float(volume)  >= rate:
-                    time = l.get('timestamp')
-                    res_trades.append([time[11:19],symbol,volume,price,type])
+                    time = format_data(t.get('timestamp'))
+                    res_trades.append([time,symbol,volume,price,type])
             startTime = buffTime
             buffTime = startTime+jump
         else:
@@ -92,4 +92,14 @@ def create_statictic(list):
             msg += '🕐 ' + l[0][0:9] + '  🅰️ ' + str(l[2]) + ' $\n🔹' + str(l[4]) + '                💸' + str( l[3]) + '\n'
     return msg
 
+
+def format_data(s):
+    str_data = s[0:10]
+    str_time = s[11:19]
+    arr_data = str_data.split('-')
+    arr_time = str_time.split(':')
+    delta = datetime.timedelta(hours=3)
+    date = datetime.datetime(int(arr_data[0]),int(arr_data[1]),int(arr_data[2]),int(arr_time[0]),int(arr_time[1]),int(arr_time[2]))
+    date = date+delta
+    return str(date.time())
 
