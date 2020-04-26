@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 import requests
 import json
 import math
@@ -90,5 +92,6 @@ def create_statictic(list):
             buy = str(l[0])
             sell = str(l[1])
             rize = str(list[7])
-            msg += '🕑 '+str(l[4])+'  🏛 '+conf_menu.list_conf[0]+'\n🔹BUY '+buy[:11]+' btc/1min\n🔻SELL '+sell[:11]+' btc/1min\n💲'+list[5][:6]+'   ➡   💲'+list[6][:6]+'('+rize[0:5]+'$)\n🔹'+str(l[2])+' %                   🔻'+str(l[3])+' %\n'
+            print(l)
+            msg += '🕑 '+str(l[4])+'  🏛 '+conf_menu.list_conf[0]+'\n🔹BUY '+buy[:11]+' btc/1min\n🔻SELL '+sell[:11]+' btc/1min\n💲'+l[5][:6]+'   ➡   💲'+l[6][:6]+'('+rize[0:5]+'$)\n🔹'+str(l[2])+' %                   🔻 %\n'
     return msg

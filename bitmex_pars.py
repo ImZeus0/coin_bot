@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 import requests
 import json
 import datetime
@@ -7,19 +9,21 @@ buff_id = 0
 #https://www.bitmex.com/api/v1/trade?count=100&reverse=false&startTime=2020-04-04%2010%3A10%3A10&endTime=2020-04-04%2010%3A10%3A20
 def get_trades(symbol,min_lim,max_lim):
     UTC = datetime.timedelta(hours=3)
-    startTime = datetime.datetime.now() - datetime.timedelta(seconds=10)-UTC
+    startTime = datetime.datetime.now() - datetime.timedelta(seconds=15)-UTC
     buffTime = datetime.datetime.now()-UTC
     print(startTime, buffTime)
     arr = str(startTime).split(':')
+    s_h = arr[0]
     s_m = arr[1]
     s_s = arr[2][:2]
     arr1 = str(buffTime).split(':')
+    e_h = arr[0]
     e_m = arr1[1]
     e_s = arr1[2][:2]
     print(s_s,e_s)
     url = 'https://www.bitmex.com/api/v1/trade?symbol=' + symbol + 'USD&count=1000&reverse=true&startTime=' + str(
-        startTime.date()) + 'T' + str(startTime.time().hour) + '%3A' + s_m + '%3A' + s_s+'&endTime=' + str(
-        buffTime.date()) + 'T' + str(buffTime.time().hour) + '%3A' + e_m + '%3A' + e_s
+        startTime.date()) + 'T' + s_h[-2:] + '%3A' + s_m + '%3A' + s_s+'&endTime=' + str(
+        buffTime.date()) + 'T' + e_h[-2:] + '%3A' + e_m + '%3A' + e_s
     print(url)
     response = requests.get(url)
     list = json.loads(response.text)
@@ -41,7 +45,10 @@ def format(trades,min_lim,max_lim):
 def create_msg(lists):
     msg = ''
     for list in lists:
-        msg += '🕑 '+list[0]+'  🏛 '+conf_menu.list_conf[0]+'\n🔹'+str(list[3])+'  💲 '+str(list[2])+'  💰 '+str(list[1])+'\n'
+        if list[3] == 'Buy':
+            msg += '🕑 '+list[0]+'  🏛 '+conf_menu.list_conf[0]+'\n🔹'+str(list[3])+'  💲 '+str(list[2])+'  💰 '+str(list[1])+'\n'
+        else:
+            msg += '🕑 '+list[0]+'  🏛 '+conf_menu.list_conf[0]+'\n ♦️ '+str(list[3])+'  💲 '+str(list[2])+'  💰 '+str(list[1])+'\n'
     return msg
 
 

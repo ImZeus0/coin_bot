@@ -1,2 +1,4 @@
-TOKEN = '1102183395:AAEuvo4fM47AgbDfdjWJUuHe0wBvVIGaz9k'
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+TOKEN = '1102183395:AAFyV5f9DwpSJFfpyKiyTy9He7gl1FIJpJU'
 chat = '-1001298795469'

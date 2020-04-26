@@ -1,6 +1,8 @@
-import threading
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-import threading
 import telebot
 import config
+import lang
 import keyboard
 import re
 import parse
@@ -8,12 +10,37 @@ import time
 import binance_pars
 import bitmex_pars
 import conf_menu
-import lang
+import cherrypy
+
+WEBHOOK_HOST = '185.252.144.158'
+WEBHOOK_PORT = 443  # 443, 80, 88 или 8443 (порт должен быть открыт!)
+WEBHOOK_LISTEN = '185.252.144.158'  # На некоторых серверах придется указывать такой же IP, что и выше
+
+WEBHOOK_SSL_CERT = 'webhook_cert.pem'  # Путь к сертификату
+WEBHOOK_SSL_PRIV = 'webhook_pkey.pem'  # Путь к приватному ключу
+
+WEBHOOK_URL_BASE = "https://%s:%s" % (WEBHOOK_HOST, WEBHOOK_PORT)
+WEBHOOK_URL_PATH = "/%s/" % (config.TOKEN)
 
 language = 0
 flag_stream = True
 
 bot = telebot.TeleBot(config.TOKEN)
+
+class WebhookServer(object):
+    @cherrypy.expose
+    def index(self):
+        if 'content-length' in cherrypy.request.headers and \
+                        'content-type' in cherrypy.request.headers and \
+                        cherrypy.request.headers['content-type'] == 'application/json':
+            length = int(cherrypy.request.headers['content-length'])
+            json_string = cherrypy.request.body.read(length).decode("utf-8")
+            update = telebot.types.Update.de_json(json_string)
+            # Эта функция обеспечивает проверку входящего сообщения
+            bot.process_new_updates([update])
+            return ''
+        else:
+            raise cherrypy.HTTPError(403)
 
 
 @bot.message_handler(commands=['start'])
@@ -30,10 +57,9 @@ def start_bitmex(m, symbol, lim_max,lim_min):
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
         reply = bitmex_pars.get_trades(symbol,lim_max,lim_min)
-        print(reply)
         if reply != None and len(reply)>5:
             bot.send_message(config.chat, reply)
-        time.sleep(10)
+        time.sleep(15)
 
 
 def start_binance(m, symbol, lim_max,lim_min):
@@ -42,7 +68,6 @@ def start_binance(m, symbol, lim_max,lim_min):
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
         reply = binance_pars.trades(symbol,lim_max,lim_min)
-        print(reply)
         if reply != None:
             bot.send_message(config.chat, reply)
         time.sleep(60)
@@ -54,7 +79,6 @@ def start_bitfinex(m, symbol, lim_max,lim_min):
     bot.send_message(m.chat.id, 'Start striming', reply_markup=keyboard.stream_menu_2())
     while flag_stream:
         reply = parse.trades(symbol, lim_min,lim_max)
-        print(reply)
         if reply != None:
             bot.send_message(config.chat, reply[1:])
         time.sleep(60)
@@ -101,7 +125,6 @@ def limit(m):
         if conf_menu.list_conf[0] == 'binance':
             res = binance_pars.trade_for_period(conf_menu.list_conf[1], conf_menu.list_conf[2],
                                                     conf_menu.list_conf[3],conf_menu.list_conf[4])
-            print(res)
             if len(res) < 4000:
                 bot.send_message(config.chat, res)
             else:
@@ -111,7 +134,6 @@ def limit(m):
         elif conf_menu.list_conf[0] == 'bitfinex':
             res = parse.get_trades(conf_menu.list_conf[1], conf_menu.list_conf[2],
                                                     conf_menu.list_conf[4],conf_menu.list_conf[3])
-            print(res)
             if len(res) < 4000:
                 bot.send_message(config.chat, res)
             else:
@@ -121,7 +143,6 @@ def limit(m):
         elif conf_menu.list_conf[0] == 'bitmex':
             res = bitmex_pars.trade_for_the_period(conf_menu.list_conf[1], conf_menu.list_conf[2],
                                                        conf_menu.list_conf[3])
-            print(res)
             if len(res) < 4000:
                 bot.send_message(config.chat, res)
             else:
@@ -213,5 +234,19 @@ def menu(m):
         bot.send_message(m.chat.id, lang.error[conf_menu.lang], reply_markup=keyboard.main_menu())
         conf_menu.list_conf = ['']
 
+bot.remove_webhook()
 
-bot.polling(none_stop=True)
+ # Ставим заново вебхук
+bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH,
+                certificate=open(WEBHOOK_SSL_CERT, 'r'))
+
+cherrypy.config.update({
+    'server.socket_host': WEBHOOK_LISTEN,
+    'server.socket_port': WEBHOOK_PORT,
+    'server.ssl_module': 'builtin',
+    'server.ssl_certificate': WEBHOOK_SSL_CERT,
+    'server.ssl_private_key': WEBHOOK_SSL_PRIV
+})
+
+ # Собственно, запуск!
+cherrypy.quickstart(WebhookServer(), WEBHOOK_URL_PATH, {'/': {}})
